@@ -39,4 +39,4 @@ luac.out
 *.x86_64
 *.hex
 
-./lua/custom/plugins/ai.lua
+lua/custom/plugins/ai.lua
