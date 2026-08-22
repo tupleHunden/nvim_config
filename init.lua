@@ -104,7 +104,6 @@ require("lazy").setup({
 			vim.keymap.set("n", "<leader>sr", builtin.resume, { desc = "[S]earch [R]esume" })
 			vim.keymap.set("n", "<leader>s.", builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
 			vim.keymap.set("n", "<leader><leader>", builtin.buffers, { desc = "[ ] Find existing buffers" })
-
 			vim.keymap.set("n", "<leader>/", function()
 				builtin.current_buffer_fuzzy_find(require("telescope.themes").get_dropdown({
 					winblend = 10,
@@ -123,25 +122,12 @@ require("lazy").setup({
 		end,
 	},
 	{
-		"comfysage/evergarden",
-		opts = {
-			transparent_background = true,
-			contrast_dark = "hard",
-		},
-		init = function()
-			vim.o.background = "dark"
-			vim.cmd.colorscheme("evergarden")
-			vim.cmd.hi("Comment gui=none")
-		end,
-	},
-	{
 		"folke/which-key.nvim",
 		event = "VeryLazy",
 		opts = {},
 		spec = {
 			{ "<leader>c", group = "[C]ode", mode = { "n", "x" } },
-			{ "<leader>d", group = "[D]ocument" },
-			{ "<leader>r", group = "[R]ename" },
+			{ "<leader>r", group = "[R]enamessss" },
 			{ "<leader>s", group = "[S]earch" },
 			{ "<leader>w", group = "[W]orkspace" },
 			{ "<leader>t", group = "[T]oggle" },
@@ -384,6 +370,209 @@ require("lazy").setup({
 					end,
 				},
 			})
+		end,
+	},
+	{
+		"mfussenegger/nvim-dap",
+		event = "VeryLazy",
+		dependencies = {
+			"rcarriga/nvim-dap-ui",
+			"nvim-neotest/nvim-nio",
+			"theHamsta/nvim-dap-virtual-text",
+			{
+				"jay-babu/mason-nvim-dap.nvim",
+				opts = {
+					handlers = {},
+				},
+			},
+		},
+	},
+})
+
+vim.api.nvim_create_autocmd("FileType", {
+	pattern = { "lua", "python", "ols", "odin", "zig", "rust", "java" },
+	callback = function()
+		vim.treesitter.start()
+	end,
+})
+
+vim.cmd.colorscheme("ghostember")
+
+local odin_build_debug = "odin build game -build-mode:dll --debug && odin build . --debug"
+local odin_build_game_dll = "odin build game -build-mode:dll --debug"
+-- Let typing :bb expand to :BB on the command line
+local dap = require("dap")
+local ui = require("dapui")
+
+require("nvim-dap-virtual-text").setup({
+	enabled = true,
+	virt_lines = true,
+	only_first_definition = false,
+	all_references = true,
+	highlight_changed_variables = true,
+	all_frames = true,
+	virt_text_pos = "eol",
+})
+
+ui.setup({
+	layouts = {
+		{
+			elements = {
+				{ id = "scopes", size = 0.40 },
+				{ id = "breakpoints", size = 0.20 },
+				{ id = "stacks", size = 0.20 },
+				{ id = "watches", size = 0.20 },
+			},
+			position = "left",
+			size = 75, -- width in columns
+		},
+	},
+})
+
+vim.fn.sign_define("DapBreakpoint", { text = "🌭" })
+
+dap.listeners.before.attach.dapui_config = function()
+	ui.open()
+end
+dap.listeners.before.launch.dapui_config = function()
+	ui.open()
+end
+dap.listeners.before.event_terminated.dapui_config = function()
+	ui.close()
+end
+dap.listeners.before.event_exited.dapui_config = function()
+	ui.close()
+end
+
+dap.adapters.lldb = {
+	type = "executable",
+	command = "/usr/bin/lldb-dap",
+	name = "lldb",
+}
+
+dap.configurations.odin = {
+	{
+		name = "Trade Route",
+		type = "lldb",
+		request = "launch",
+		program = function()
+			vim.fn.system(odin_build_debug)
+			return "trade_route"
+		end,
+		cwd = "${workspaceFolder}",
+		stopOnEntry = false,
+		args = {},
+		runInTerminal = false,
+	},
+}
+
+local wk = require("which-key")
+wk.add({
+	{
+		"<leader>bb",
+		function()
+			vim.fn.system(odin_build_game_dll)
+			vim.notify("Build successful")
+		end,
+		desc = "Build the Game DLL for Hotreloading",
+	},
+	{ "<leader>d", group = "[D]ebugger" },
+	{
+		"<leader>dt",
+		function()
+			require("dap").toggle_breakpoint()
+		end,
+		desc = "Toggle Breakpoint",
+		nowait = true,
+		remap = false,
+	},
+	{
+		"<leader>dd",
+		function()
+			require("dap").continue()
+		end,
+		desc = "Continue",
+		nowait = true,
+		remap = false,
+	},
+	{
+		"<leader>di",
+		function()
+			require("dap").step_into()
+		end,
+		desc = "Step Into",
+		nowait = true,
+		remap = false,
+	},
+	{
+		"<leader>do",
+		function()
+			require("dap").step_over()
+		end,
+		desc = "Step Over",
+		nowait = true,
+		remap = false,
+	},
+	{
+		"<leader>du",
+		function()
+			require("dap").step_out()
+		end,
+		desc = "Step Out",
+		nowait = true,
+		remap = false,
+	},
+	{
+		"<leader>dr",
+		function()
+			require("dap").repl.open()
+		end,
+		desc = "Open REPL",
+		nowait = true,
+		remap = false,
+	},
+	{
+		"<leader>dl",
+		function()
+			require("dap").run_last()
+		end,
+		desc = "Run Last",
+		nowait = true,
+		remap = false,
+	},
+	{
+		"<leader>dq",
+		function()
+			require("dap").terminate()
+			require("dapui").close()
+			require("nvim-dap-virtual-text").toggle()
+		end,
+		desc = "Terminate",
+		nowait = true,
+		remap = false,
+	},
+	{
+		"<leader>db",
+		function()
+			require("dap").list_breakpoints()
+		end,
+		desc = "List Breakpoints",
+		nowait = true,
+		remap = false,
+	},
+	{
+		"<leader>de",
+		function()
+			require("dap").set_exception_breakpoints({ "all" })
+		end,
+		desc = "Set Exception Breakpoints",
+		nowait = true,
+		remap = false,
+	},
+	{
+		"<leader>dw",
+		function()
+			require("dapui").elements.watches.add(vim.fn.expand("<cword>"))
 		end,
 	},
 })
